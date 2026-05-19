@@ -8,7 +8,7 @@ COPY . /app
 RUN apt-get update \
     && pip install --upgrade pip \
     && pip3 install --user --no-cache-dir \
-        "asreview>=2,<3" \
+        git+https://github.com/michi-zuri/asreview@mama \
         gunicorn
         
 # Second stage

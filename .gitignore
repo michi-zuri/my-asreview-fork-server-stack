@@ -1,0 +1,22 @@
+# --- Secrets & local configuration (NEVER commit these) ---
+# Real values live only on the deployment host (or in Coolify's UI).
+.env
+.env.*
+!.env.example
+
+# Legacy TOML config (no longer used — kept ignored in case a stale file lingers)
+asreview_config.toml
+
+# TLS certificates & private keys
+*.pem
+*.key
+*.crt
+fullchain.pem
+privkey.pem
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
