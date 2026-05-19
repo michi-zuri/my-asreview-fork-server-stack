@@ -39,11 +39,14 @@ services:
       - project-folder:/project_folder
     expose:
       - "5006"
-    entrypoint: []
-    command: >
-      bash -c "asreview auth-tool create-db
-      && asreview task-manager
-      & gunicorn -w ${WORKERS:-4} -b 0.0.0.0:5006 'asreview.webapp.app:create_app()'"
+    command:
+      - bash
+      - -c
+      - |
+        set -euo pipefail
+        asreview auth-tool create-db
+        asreview task-manager &
+        exec gunicorn -w "${WORKERS:-4}" -b 0.0.0.0:5006 'asreview.webapp.app:create_app()'
 
 volumes:
   project-folder:

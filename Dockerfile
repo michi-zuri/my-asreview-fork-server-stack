@@ -30,5 +30,3 @@ ENV ASREVIEW_LAB_HOST=0.0.0.0
 ENV PATH=/root/.local/bin:$PATH
 ENV ASREVIEW_PATH=/project_folder
 EXPOSE 5000
-
-ENTRYPOINT ["asreview"]
