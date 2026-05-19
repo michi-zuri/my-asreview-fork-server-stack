@@ -36,9 +36,7 @@ services:
       ASREVIEW_LAB_SQLALCHEMY_DATABASE_URI: postgresql+psycopg2://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@database:5432/${POSTGRES_DB:?}
       ASREVIEW_LAB_API_URL: /
     volumes:
-      - project-folder:/project_folder
-    expose:
-      - "5006"
+      - project-folder:${ASREVIEW_PATH:?}
     command:
       - bash
       - -c
