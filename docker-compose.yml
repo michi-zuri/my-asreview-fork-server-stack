@@ -35,8 +35,9 @@ services:
       # Composite values that need interpolation — declared here, not in .env.
       ASREVIEW_LAB_SQLALCHEMY_DATABASE_URI: postgresql+psycopg2://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@database:5432/${POSTGRES_DB:?}
       ASREVIEW_LAB_API_URL: /
+      ASREVIEW_PATH: /asreview_projects
     volumes:
-      - project-folder:${ASREVIEW_PATH:?}
+      - project-folder:/asreview_projects
     command:
       - bash
       - -c
