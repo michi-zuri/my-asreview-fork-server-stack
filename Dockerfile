@@ -17,9 +17,9 @@ WORKDIR /src/asreview
 RUN --mount=type=cache,target=/root/.npm \
     --mount=type=cache,target=/src/asreview/asreview/webapp/node_modules \
     --mount=type=cache,target=/root/.cache/pip \
-    pip install wheel \
+    pip install build \
     && python setup.py compile_assets \
-    && python setup.py bdist_wheel
+    && python -m build --wheel --no-isolation
     # Wheel is now at /src/asreview/dist/*.whl
 
 # ============================================================
