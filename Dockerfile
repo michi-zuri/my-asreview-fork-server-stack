@@ -9,4 +9,4 @@ RUN apt-get update \
     && git config --global url."https://".insteadOf "git://"
     pip3 install --upgrade pip \
     && pip3 install --no-cache-dir psycopg2-binary gunicorn  \
-        git+https://github.com/michi-zuri/asreview@mama ;
+        git+https://github.com/michi-zuri/asreview@mama
