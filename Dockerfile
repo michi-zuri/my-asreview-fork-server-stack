@@ -14,7 +14,9 @@ RUN git clone --depth 1 --branch mama --single-branch \
         https://github.com/michi-zuri/asreview.git /src/asreview
 
 WORKDIR /src/asreview
-RUN pip install --no-cache-dir wheel \
+RUN --mount=type=cache,target=/root/.npm \
+    --mount=type=cache,target=/src/asreview/asreview/webapp/node_modules \
+    pip install --no-cache-dir wheel \
     && python setup.py compile_assets \
     && python setup.py bdist_wheel
 # Wheel is now at /src/asreview/dist/*.whl
