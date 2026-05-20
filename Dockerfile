@@ -19,7 +19,7 @@ RUN --mount=type=cache,target=/root/.npm \
     --mount=type=cache,target=/root/.cache/pip \
     pip install build \
     && python setup.py compile_assets \
-    && python -m build --wheel --no-isolation
+    && python -m build --wheel
     # Wheel is now at /src/asreview/dist/*.whl
 
 # ============================================================
