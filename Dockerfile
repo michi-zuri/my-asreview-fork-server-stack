@@ -16,10 +16,11 @@ RUN git clone --depth 1 --branch mama --single-branch \
 WORKDIR /src/asreview
 RUN --mount=type=cache,target=/root/.npm \
     --mount=type=cache,target=/src/asreview/asreview/webapp/node_modules \
-    pip install --no-cache-dir wheel \
+    --mount=type=cache,target=/root/.cache/pip \
+    pip install wheel \
     && python setup.py compile_assets \
     && python setup.py bdist_wheel
-# Wheel is now at /src/asreview/dist/*.whl
+    # Wheel is now at /src/asreview/dist/*.whl
 
 # ============================================================
 # Stage 2: lean runtime image
@@ -30,8 +31,9 @@ WORKDIR /app
 
 COPY --from=builder /src/asreview/dist/*.whl /tmp/
 
-RUN pip3 install --upgrade pip \
-    && pip3 install --no-cache-dir \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip3 install --upgrade pip \
+    && pip3 install \
         psycopg2-binary \
         gunicorn \
         /tmp/*.whl \
