@@ -16,9 +16,11 @@ services:
     build: .
     restart: unless-stopped
     env_file: .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       # Composite values that need interpolation — declared here, not in .env.
-      ASREVIEW_LAB_SQLALCHEMY_DATABASE_URI: postgresql+psycopg2://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@${POSTGRES_HOST:?}:5432/${POSTGRES_DB:?}
+      ASREVIEW_LAB_SQLALCHEMY_DATABASE_URI: postgresql+psycopg2://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@host.docker.internal:5432/${POSTGRES_DB:?}
       ASREVIEW_LAB_API_URL: /
       ASREVIEW_PATH: /asreview_projects
     volumes:
