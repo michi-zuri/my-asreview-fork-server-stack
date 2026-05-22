@@ -12,18 +12,6 @@
 
 services:
 
-  database:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    env_file: .env
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d ${POSTGRES_DB:?} -U ${POSTGRES_USER:?}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    volumes:
-      - database-volume:/var/lib/postgresql/data
-
   asreview:
     build: .
     restart: unless-stopped
@@ -33,7 +21,7 @@ services:
     env_file: .env
     environment:
       # Composite values that need interpolation — declared here, not in .env.
-      ASREVIEW_LAB_SQLALCHEMY_DATABASE_URI: postgresql+psycopg2://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@database:5432/${POSTGRES_DB:?}
+      ASREVIEW_LAB_SQLALCHEMY_DATABASE_URI: postgresql+psycopg2://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@postgresql-18:5432/${POSTGRES_DB:?}
       ASREVIEW_LAB_API_URL: /
       ASREVIEW_PATH: /asreview_projects
     volumes:
@@ -42,11 +30,14 @@ services:
       - bash
       - -c
       - |
-        set -euo pipefail
-        asreview auth-tool create-db
-        asreview task-manager &
-        exec gunicorn -w "${WORKERS:-4}" -b 0.0.0.0:5006 'asreview.webapp.app:create_app()'
-
+        set -uo pipefail
+        echo "Waiting for database..."
+        until python -c "import psycopg2, os; psycopg2.connect(os.environ['ASREVIEW_LAB_SQLALCHEMY_DATABASE_URI'].replace('+psycopg2','')).close()" 2>/dev/null; do
+          sleep 2
+        done
+        echo "Database reachable."
+        asreview auth-tool create-db || true
+        exec gunicorn -w "${WORKERS:-2}" -b 0.0.0.0:5006 'asreview.webapp.app:create_app()'
 volumes:
   project-folder:
   database-volume:
