@@ -15,9 +15,6 @@ services:
   asreview:
     build: .
     restart: unless-stopped
-    depends_on:
-      database:
-        condition: service_healthy
     env_file: .env
     environment:
       # Composite values that need interpolation — declared here, not in .env.
