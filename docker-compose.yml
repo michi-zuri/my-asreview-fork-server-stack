@@ -1,28 +1,40 @@
 # =============================================================================
 # docker-compose.yml  --  ASReview LAB server stack (Coolify-first).
 # -----------------------------------------------------------------------------
-# Two services: PostgreSQL + ASReview (Gunicorn). Traefik (Coolify's built-in
-# proxy) terminates HTTPS and routes traffic directly to the asreview
-# container on port 5006 — assign a domain to the `asreview` service in the
-# Coolify UI and you're done.
+# Two services from one image:
+#   * asreview      -- Gunicorn web app (port 5006; point Coolify's domain here)
+#   * task-manager  -- ASReview's ML training daemon, isolated so a crash
+#                      never takes the web app down (and vice versa), and
+#                      Docker restarts it automatically if it dies.
 #
-# All configuration lives in .env (or Coolify's env-vars UI). Flask reads
-# ASREVIEW_LAB_* env vars directly via app.config.from_prefixed_env.
+# Database: set ASREVIEW_LAB_SQLALCHEMY_DATABASE_URI in .env for PostgreSQL;
+# leave it unset to use the built-in SQLite database (stored in the shared
+# project volume). See .env.example.
+#
+# Traefik (Coolify's built-in proxy) terminates HTTPS and routes traffic to
+# the asreview container on port 5006 -- assign a domain to the `asreview`
+# service in the Coolify UI and you're done.
 # =============================================================================
 
 services:
 
   asreview:
     build: .
+    image: asreview-mama
     restart: unless-stopped
     env_file: .env
+    depends_on:
+      task-manager:
+        condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      # Composite values that need interpolation — declared here, not in .env.
-      ASREVIEW_LAB_SQLALCHEMY_DATABASE_URI: postgresql+psycopg2://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@host.docker.internal:5432/${POSTGRES_DB:?}
       ASREVIEW_LAB_API_URL: /
       ASREVIEW_PATH: /asreview_projects
+      # Where the web app reaches the task manager (Flask strips the
+      # ASREVIEW_LAB_ prefix -> app.config["TASK_MANAGER_HOST"/"PORT"]).
+      ASREVIEW_LAB_TASK_MANAGER_HOST: task-manager
+      ASREVIEW_LAB_TASK_MANAGER_PORT: 5101
     volumes:
       - project-folder:/asreview_projects
     command:
@@ -30,13 +42,50 @@ services:
       - -c
       - |
         set -uo pipefail
-        echo "Waiting for database..."
-        until python -c "import psycopg2, os; psycopg2.connect(os.environ['ASREVIEW_LAB_SQLALCHEMY_DATABASE_URI'].replace('+psycopg2','')).close()" 2>/dev/null; do
-          sleep 2
-        done
-        echo "Database reachable."
+        # $$ = escaped for compose: these vars are evaluated at RUNTIME in the
+        # container (delivered via env_file), not at compose-interpolation time.
+        if [ -n "$${ASREVIEW_LAB_SQLALCHEMY_DATABASE_URI:-}" ]; then
+          case "$$ASREVIEW_LAB_SQLALCHEMY_DATABASE_URI" in
+            postgresql*)
+              echo "Waiting for PostgreSQL..."
+              until python -c "import psycopg2, os; psycopg2.connect(os.environ['ASREVIEW_LAB_SQLALCHEMY_DATABASE_URI'].replace('+psycopg2','')).close()" 2>/dev/null; do
+                sleep 2
+              done
+              echo "PostgreSQL reachable."
+              ;;
+            *)
+              echo "Using database URI as-is (not PostgreSQL): no wait loop."
+              ;;
+          esac
+        else
+          echo "ASREVIEW_LAB_SQLALCHEMY_DATABASE_URI not set -- using built-in SQLite in \$ASREVIEW_PATH."
+        fi
         asreview auth-tool create-db || true
-        exec gunicorn -w "${WORKERS:-2}" -b 0.0.0.0:5006 'asreview.webapp.app:create_app()'
+        exec gunicorn -w "$${WORKERS:-2}" -b 0.0.0.0:5006 'asreview.webapp.app:create_app()'
+
+  task-manager:
+    # Same image as the web app; compose builds it once via the service above.
+    image: asreview-mama
+    restart: unless-stopped
+    # PID-1 init (tini): the task manager forks training subprocesses; this
+    # ensures orphaned children are reaped instead of accumulating as zombies.
+    init: true
+    env_file: .env
+    environment:
+      ASREVIEW_PATH: /asreview_projects
+      # Bind on all interfaces so the asreview service can reach us.
+      # (Overrides any value from .env: `environment` beats `env_file`.)
+      ASREVIEW_LAB_TASK_MANAGER_HOST: 0.0.0.0
+      ASREVIEW_LAB_TASK_MANAGER_PORT: 5101
+    volumes:
+      - project-folder:/asreview_projects
+    command: ["asreview", "task-manager"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 5101), 2).close()"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
 volumes:
   project-folder:
-  database-volume:
