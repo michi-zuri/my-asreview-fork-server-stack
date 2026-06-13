@@ -36,7 +36,11 @@ services:
       ASREVIEW_LAB_TASK_MANAGER_HOST: task-manager
       ASREVIEW_LAB_TASK_MANAGER_PORT: 5101
     volumes:
-      - project-folder:/asreview_projects
+      # Direct bind mount to a host path. Unlike a named volume with
+      # driver_opts, Coolify passes bind mounts through to Docker literally,
+      # so the data reliably lives at /data/asreview (create it first:
+      # sudo mkdir -p /data/asreview). Shared with the task-manager service.
+      - /data/asreview:/asreview_projects
     command:
       - bash
       - -c
@@ -91,7 +95,7 @@ services:
       ASREVIEW_LAB_TASK_MANAGER_HOST: 0.0.0.0
       ASREVIEW_LAB_TASK_MANAGER_PORT: 5101
     volumes:
-      - project-folder:/asreview_projects
+      - /data/asreview:/asreview_projects
     command: ["asreview", "task-manager"]
     healthcheck:
       test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 5101), 2).close()"]
@@ -100,15 +104,3 @@ services:
       retries: 3
       start_period: 20s
 
-volumes:
-  # Named volume (Coolify-managed) pinned to a host path you control.
-  # The data lives at /data/asreview on the host -- easy to inspect, back up,
-  # and rsync between servers -- while Coolify still tracks it as a managed
-  # volume. The host directory MUST exist before first deploy:
-  #     sudo mkdir -p /data/asreview
-  project-folder:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /data/asreview
