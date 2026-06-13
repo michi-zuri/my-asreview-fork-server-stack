@@ -62,6 +62,19 @@ services:
         fi
         asreview auth-tool create-db || true
         exec gunicorn -w "$${WORKERS:-2}" -b 0.0.0.0:5006 'asreview.webapp.app:create_app()'
+    healthcheck:
+      # GET / serves the SPA and returns 200 for anonymous requests (the
+      # index route's login_remote_user only *optionally* attaches a user),
+      # so it verifies gunicorn is actually serving. urllib, not curl/wget --
+      # the python:3.11-slim runtime has neither. urlopen raises on any non-2xx
+      # or connection failure, which is exactly the failure signal we want.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5006/', timeout=5)"]
+      interval: 600s
+      timeout: 60s
+      retries: 3
+      # Generous start_period: first boot waits on the DB, runs create-db, and
+      # gunicorn spins up workers before / is served. Don't count early failures.
+      start_period: 60s
 
   task-manager:
     # Same image as the web app; compose builds it once via the service above.
@@ -82,7 +95,7 @@ services:
     command: ["asreview", "task-manager"]
     healthcheck:
       test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 5101), 2).close()"]
-      interval: 15s
+      interval: 120s
       timeout: 5s
       retries: 3
       start_period: 20s
